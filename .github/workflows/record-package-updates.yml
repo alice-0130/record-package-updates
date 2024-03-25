@@ -1,0 +1,69 @@
+name: Record Package Version Updates
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  record-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Node.js and npm
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compare changes with main
+        id: compare-changes
+        run: |
+          # Get the latest commit SHA of the main branch
+          MAIN_SHA=$(git rev-parse origin/main)
+
+          # Get the SHA of the previous commit
+          PREVIOUS_SHA=$(git rev-parse HEAD^1)
+
+          # Get the changes between previous commit and main
+          CHANGED_FILES=$(git diff --name-only $MAIN_SHA $PREVIOUS_SHA)
+
+          # Check if package.json has been modified
+          if echo "$CHANGED_FILES" | grep -q "package.json"; then
+            # Get the previous version of the package
+            PREVIOUS_VERSION=$(jq -r '.version' package.json)
+
+            # Get the current version of the package
+            CURRENT_VERSION=$(jq -r '.version' $MAIN_SHA:package.json)
+
+            # Check if version has been updated
+            if [ "$PREVIOUS_VERSION" != "$CURRENT_VERSION" ]; then
+              echo "Package version has been updated from $PREVIOUS_VERSION to $CURRENT_VERSION"
+
+              # Create draft release with version update information
+              echo "## Version $CURRENT_VERSION" >> release_notes.md
+              echo "Package version has been updated from $PREVIOUS_VERSION to $CURRENT_VERSION" >> release_notes.md
+
+              # Set the output parameter with release notes
+              echo "::set-output name=release_notes::$(cat release_notes.md)"
+            else
+              echo "Package version has not been updated"
+            fi
+          else
+            echo "No changes in package.json"
+          fi
+
+      - name: Create draft release
+        if: steps.compare-changes.outputs.release_notes
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ steps.compare-changes.outputs.current_version }}
+          release_name: Release ${{ steps.compare-changes.outputs.current_version }}
+          body: ${{ steps.compare-changes.outputs.release_notes }}
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
