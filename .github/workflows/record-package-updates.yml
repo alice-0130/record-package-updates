@@ -15,12 +15,11 @@ jobs:
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
       - name: Create draft release
-          if: steps.compare-changes.outputs.release_notes
-          uses: actions/create-release@v1
-          with:
-            tag_name: v1.1.0
-            release_name: Release 1.0.0
-            body: ${{ steps.package-version.outputs.current-version }}
-            draft: true
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/create-release@v1
+        with:
+          tag_name: v1.1.0
+          release_name: Release 1.0.0
+          body: ${{ steps.package-version.outputs.current-version }}
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
